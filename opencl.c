@@ -85,9 +85,76 @@ cl_program	buil_program(cl_context ctx, cl_device_id, const char * filename)
 		program_log[log_size] = '\0';
 		clGetProgramBuildInfo(program, dev, CL_PROGRAM_BUILD_LOG, log_size + 1, program_log, NULL);
 		//printf();
-		printf("%\n", program_log);
+		printf("%s\n", program_log);
 		free(program_log);
 		exit(1);
 	}
 	return program;
+}
+
+int main()
+{
+	//opencl structures
+	cl_device_id		device;
+	cl_context			context;
+	cl_program			program;
+	cl_kernel			kernel;
+	cl_command_queue	queue;
+	cl_int				i;
+	cl_int				j;
+	cl_int				err;
+	size_t				local_size;
+	size_t				global_size;
+
+	// data and buffers
+	float				data[ARRAY_SIZE];
+	float				sum[2];
+	float				total;
+	float				actual_sum;
+	cl_mem				input_buffer;
+	cl_mem				sum_buffer;
+	cl_int				num_groups;
+
+	// init data
+	for (i=0; i<ARRAY_SIZE; i++)
+		data[i] = 1.0*i;
+
+	//create device and context
+	device = create_device();
+	context = clCreateContext(NULL, 1, &device, NULL, NULL, &err);
+	if (err < 0)
+	{
+		perror("Couldn't create a context");
+		exit(1);
+	}
+
+	// build program
+	program = build_program(context, device, PROGRAM_FILE);
+	
+	// create a data buffer
+	global_size = 8;
+	local_size = 4;
+	num_groups = global_size/local_size;
+	input_buffer = clCreateBuffer(context, CL_MEM_READ_ONLY |
+			CL_MEM_COPY_HOST_PTR, ARRAY_SIZE * sizeof(float), data, &err);
+	sum_buffer = clCreateBuffer(context, CL_MEM_READ_WRITE |
+			CL_MEM_COPY_HOST_PTR, ARRAY_SIZE * sizeof(float), sum, &err);
+	if (err < 0)
+	{
+		perror("Couldn't create a buffer");
+		exit(1);
+	}
+
+	// create a command queue 
+	queue = clCreateCommandQueue(context, devide, 0, &err);
+	if (err < 0)
+	{
+		perror("Couldn't create a command queue");
+		exit(1);
+	}
+
+	// create kernel arguments
+	err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &input_buffer);
+	err |= clSetKernelArg(kernel, 1, local_size * sizeof(float), NULL);
+	err |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &sum_buffer);
 }
